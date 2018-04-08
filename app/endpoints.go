@@ -3,26 +3,28 @@ package app
 import (
 	"net/http"
 
-	_"github.com/PeakActivity/go-todolist-challenge/app/lib"
+	"github.com/go-to-do/app/lib"
 	"gopkg.in/mgo.v2"
 	_"gopkg.in/mgo.v2/bson"
 	_"time"
 	_"log"
 	"time"
 	"log"
-	"encoding/json"
+	_"encoding/json"
 	"fmt"
 	"gopkg.in/mgo.v2/bson"
 	"github.com/gorilla/mux"
 )
 const (
 	Hosts = "ds237979.mlab.com:37979"
+	//Hosts = "localhost:27017"
 	Database = "todo"
-	UserName = ""
-	Password = ""
+	UserName = "admin"
+	Password = "admin"
 	httpSuccessCode = 200
 	httpFailureCode = 401
 )
+var response map[string]interface{}
 
 var (
 	mongoSession *mgo.Session
@@ -68,7 +70,6 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 // HelloWorld ...
 func GetAllItems(w http.ResponseWriter, r *http.Request) {
-	response := Result{}
 	var allItems []Items
 	res := lib.Response{ResponseWriter: w}
 	sessionCopy := mongoSession.Copy()
@@ -77,44 +78,40 @@ func GetAllItems(w http.ResponseWriter, r *http.Request) {
 	err = collection.Find(nil).All(&allItems)
 
 	if err != nil {
-		fmt.Println("Adding item err " + err.Error())
-		response = Result{httpFailureCode, "Error occur in find Items"}
+		response = map[string]interface{}{"code":httpFailureCode,"message":"GetAllItems find err", "data": err.Error()}
 	} else {
-		response = Result{httpSuccessCode, "successfully find Items"}
-
+		response = map[string]interface{}{"code":httpSuccessCode,"message":"GetAllItems find success", "data": allItems}
 	}
-	var out= map[string]interface{}{"response": response, "data": allItems}
-	res.SendOK(out)
+	fmt.Println("response",response)
+	res.SendOK(response)
 
 }
 
 func GetItemById(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	itemId := params["id"]
-	response := Result{}
 	var ItemById Items
 	res := lib.Response{ResponseWriter: w}
 	sessionCopy := mongoSession.Copy()
 	defer sessionCopy.Close()
 	collection := sessionCopy.DB(Database).C("items")
+
 	err = collection.Find(bson.M{"_id":bson.ObjectIdHex(itemId)}).One(&ItemById)
 
-	if err != nil {
-		fmt.Println("Adding item err " + err.Error())
-		response = Result{httpFailureCode,"Error occur in find Items"}
-	}else {
-		response = Result{httpSuccessCode,"successfully find Items"}
 
+	if err != nil {
+		response = map[string]interface{}{"code":httpFailureCode,"message":"GetItemById find err", "data": err.Error()}
+	} else {
+		response = map[string]interface{}{"code":httpSuccessCode,"message":"GetItemById find success", "data": ItemById}
 	}
-	var out = map[string]interface{}{"response":response,"data":ItemById}
-	res.SendOK(out)
+	fmt.Println("response",response)
+	res.SendOK(response)
 }
 
 
 func AddItems(w http.ResponseWriter, r *http.Request) {
 	itemName := r.FormValue("name")
-
-	response := Result{}
+	fmt.Println("itemName",itemName)
 	res := lib.Response{ResponseWriter: w}
 	sessionCopy := mongoSession.Copy()
 	defer sessionCopy.Close()
@@ -123,53 +120,41 @@ func AddItems(w http.ResponseWriter, r *http.Request) {
 	err = collection.Insert(item)
 
 	if err != nil {
-		fmt.Println("Adding Item err " + err.Error())
-		response = Result{httpFailureCode,err.Error()}
-	}else {
-		response = Result{httpSuccessCode,"successfully adding Items"}
-
+		response = map[string]interface{}{"code":httpFailureCode,"message":"AddItems find err", "data": err.Error()}
+	} else {
+		response = map[string]interface{}{"code":httpSuccessCode,"message":"AddItems find success", "data": item}
 	}
-
-	resp, _ := json.Marshal(response)
-	res.SendOK(resp)
+	fmt.Println("response",response)
+	res.SendOK(response)
 }
 
 
 
 func UpdateItems(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	itemId := params["id"]
+	itemId := r.FormValue("id")
 	itemName := r.FormValue("name")
-
-	//var itemId = "ghjkl"
-	response := Result{}
 	res := lib.Response{ResponseWriter: w}
 	sessionCopy := mongoSession.Copy()
 	defer sessionCopy.Close()
 	collection := sessionCopy.DB(Database).C("items")
 	matchQuery := bson.M{"_id": bson.ObjectIdHex(itemId)}
-	updateQuery := bson.M{"name":itemName}
+	updateQuery := bson.M{"item_name":itemName}
+	fmt.Println("match",matchQuery,"updte",updateQuery)
 	err = collection.Update(matchQuery, updateQuery)
 
 	if err != nil {
-		fmt.Println("updating item err " + err.Error())
-		response = Result{httpFailureCode,err.Error()}
-	}else {
-		response = Result{httpSuccessCode,"successfully update Items"}
-
+		response = map[string]interface{}{"code":httpFailureCode,"message":"UpdateItems find err", "data": err.Error()}
+	} else {
+		response = map[string]interface{}{"code":httpSuccessCode,"message":"UpdateItems find success", "data": itemName}
 	}
-
-	resp, _ := json.Marshal(response)
-	res.SendOK(resp)
+	fmt.Println("response",response)
+	res.SendOK(response)
 }
 
 
 func DeleteItems(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	itemId := params["id"]
-
-	//var itemId = "ghjkl"
-	response := Result{}
 	res := lib.Response{ResponseWriter: w}
 	sessionCopy := mongoSession.Copy()
 	defer sessionCopy.Close()
@@ -178,15 +163,12 @@ func DeleteItems(w http.ResponseWriter, r *http.Request) {
 	err = collection.Remove(query)
 
 	if err != nil {
-		fmt.Println("delete item err " + err.Error())
-		response = Result{httpFailureCode,err.Error()}
-	}else {
-		response = Result{httpSuccessCode,"successfully delete Items"}
-
+		response = map[string]interface{}{"code":httpFailureCode,"message":"DeleteItems find err", "data": err.Error()}
+	} else {
+		response = map[string]interface{}{"code":httpSuccessCode,"message":"DeleteItems find success", "data": ""}
 	}
-
-	resp, _ := json.Marshal(response)
-	res.SendOK(resp)
+	fmt.Println("response",response)
+	res.SendOK(response)
 }
 
 func HandleByMethod(w http.ResponseWriter, r *http.Request) {
